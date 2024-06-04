@@ -1,35 +1,24 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import * as itemApi from "./api/items";
+import { ItemListContext } from "./components/context";
+import ItemList from "./components/item-list";
+import ItemOverlay from "./components/item-overlay";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const items = itemApi.getItems();
+  const [activeItemId, setActiveItemId] = useState<number | null>(null);
 
   return (
-    <>
+    <div className="px-4 py-8">
+      <div className="text-center px-4 py-6">
+        <h2 className="text-lg font-bold">리스트</h2>
+      </div>
       <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <ItemListContext.Provider value={{ items, activeItemId, setActiveItemId }}>
+          <ItemOverlay />
+          <ItemList />
+        </ItemListContext.Provider>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
-
-export default App
