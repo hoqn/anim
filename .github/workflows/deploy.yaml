@@ -1,0 +1,82 @@
+# author: hoqn<akzm9999@gmail.com> = Hogyun Jeon
+
+name: Deploy Monorepo to GitHub Pages
+run-name: ${{ github.run_id }} 빌드 및 배포
+
+#### app 패키지는 루트에,
+#### packages/* 패키지는 하위에 위치시키도록 해야 한다.
+### 이를 관리하기 쉽게 환경 변수로서 지정
+env:
+  BASE_PATH: "."
+  INDEX_APP_PATH: "./app"
+  SUBPACKAGES_PATH: "./packages"
+
+on:
+  # main 브랜치에 푸시될 때마다 트리거링
+  push:
+    branches: [main]
+  # 또는 메뉴를 통해 수동으로 트리거링
+  workflow_dispatch:
+
+# 권한 설정; 서버에서 레포를 클론하고 페이지 배포가 가능하도록
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+
+  build:
+    name: 빌드 # ~~및 테스트~~는 스킵하자
+    runs-on: ubuntu-latest
+    steps:
+      # git으로 해당 레포 체크아웃
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # node.js 환경 구축
+      # - name: Setup Node.js Env.
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      #     cache: pnpm
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm run build
+
+      # 결과물을 Github Pages 아티팩트에 업로드해야 한다
+
+      # 그 전에, 각각 하위 패키지의 빌드 결과물을 옮긴다
+      - name: Ensure dist dir
+        run: mkdir -p ${{ env.BASE_PATH }}/dist
+      - name: Move index-package's builds to root
+        run: mv ${{ env.INDEX_APP_PATH }}/dist ${{ env.BASE_PATH }}/dist
+      - name: Move sub-packages' builds to root
+        run: |
+          find ${{ env.SUBPACKAGES_PATH }} -type d -name dist | while read dir; do \
+            package_name=$(basename $(dirname "$dir"))
+            mv "$dir" "${{ env.BASE_PATH }}/dist/$package_name"
+          done
+      # 이제 업로드
+      - name: Upload to pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.BASE_PATH }}/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
